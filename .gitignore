@@ -6,3 +6,22 @@ __pycache__/
 env/
 venv/
 *.log
+node_modules
+
+# Python 打包相关
+receiver/build/
+receiver/dist/
+*.spec
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 配置文件（可选，包含敏感信息）
+# config.json
