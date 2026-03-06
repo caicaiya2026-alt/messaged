@@ -25,3 +25,12 @@ Thumbs.db
 
 # 配置文件（可选，包含敏感信息）
 # config.json
+
+# Cloudflare 相关
+.wrangler/
+config.yml
+*.json
+
+# 临时文件
+*.tmp
+*.temp
