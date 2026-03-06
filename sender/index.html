@@ -248,11 +248,12 @@
             connectBtn.disabled = true;
             
             try {
-                // 使用 ws:// 协议（非加密）
                 const wsUrl = `ws://${host}:${port}`;
+                console.log('尝试连接到:', wsUrl);
                 ws = new WebSocket(wsUrl);
                 
                 ws.onopen = function() {
+                    console.log('WebSocket 连接已打开');
                     updateStatus('connected', '已连接');
                     sendBtn.disabled = false;
                     connectBtn.textContent = '断开连接';
@@ -261,7 +262,8 @@
                     addMessage('系统', '连接成功', 'success');
                 };
                 
-                ws.onclose = function() {
+                ws.onclose = function(event) {
+                    console.log('WebSocket 连接已关闭, 代码:', event.code, '原因:', event.reason);
                     updateStatus('disconnected', '未连接');
                     sendBtn.disabled = true;
                     connectBtn.textContent = '连接服务器';
@@ -270,17 +272,18 @@
                 };
                 
                 ws.onerror = function(error) {
+                    console.error('WebSocket 错误:', error);
                     updateStatus('disconnected', '连接失败');
                     addMessage('系统', '连接失败，请检查服务器地址和端口', 'error');
                     connectBtn.disabled = false;
                 };
                 
                 ws.onmessage = function(event) {
-                    // 接收服务器返回的消息
                     console.log('收到服务器消息:', event.data);
                 };
                 
             } catch (error) {
+                console.error('连接错误:', error);
                 updateStatus('disconnected', '连接错误');
                 connectBtn.disabled = false;
                 addMessage('系统', '连接错误: ' + error.message, 'error');
@@ -303,8 +306,15 @@
                 return;
             }
             
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                alert('未连接到服务器');
+            if (!ws) {
+                alert('WebSocket 未初始化，请先连接服务器');
+                return;
+            }
+            
+            console.log('WebSocket 状态:', ws.readyState);
+            
+            if (ws.readyState !== WebSocket.OPEN) {
+                alert('未连接到服务器 (状态: ' + ws.readyState + ')');
                 return;
             }
             
@@ -315,10 +325,13 @@
             };
             
             try {
-                ws.send(JSON.stringify(message));
+                const messageStr = JSON.stringify(message);
+                console.log('发送消息:', messageStr);
+                ws.send(messageStr);
                 addMessage('我', content, 'success');
                 messageContent.value = '';
             } catch (error) {
+                console.error('发送失败:', error);
                 addMessage('系统', '发送失败: ' + error.message, 'error');
             }
         }

@@ -19,13 +19,19 @@ async def handle_client(websocket):
         async for message in websocket:
             try:
                 data = json.loads(message)
-                content = data.get('content', '')
+                if isinstance(data, dict):
+                    content = data.get('content', message)
+                else:
+                    content = str(data)
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"\n[{timestamp}] 收到消息: {content}")
                 print(f"来自: {websocket.remote_address}")
                 print("-" * 50)
             except json.JSONDecodeError:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] 收到原始消息: {message}")
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"\n[{timestamp}] 收到原始消息: {message}")
+                print(f"来自: {websocket.remote_address}")
+                print("-" * 50)
     except websockets.exceptions.ConnectionClosed:
         pass
     finally:

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket 测试工具</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .status.disconnected {
+            background: #ffebee;
+            color: #c62828;
+        }
+        .status.connecting {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+        .status.connected {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 100px;
+            font-family: monospace;
+        }
+        button {
+            padding: 12px 24px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        button.disconnect {
+            background: #f44336;
+        }
+        button.disconnect:hover {
+            background: #da190b;
+        }
+        .log {
+            background: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 5px;
+            border-left: 3px solid #ccc;
+        }
+        .log-entry.info {
+            border-left-color: #2196F3;
+        }
+        .log-entry.success {
+            border-left-color: #4CAF50;
+        }
+        .log-entry.error {
+            border-left-color: #f44336;
+        }
+        .log-entry.sent {
+            border-left-color: #FF9800;
+        }
+        .log-entry.received {
+            border-left-color: #9C27B0;
+        }
+        .time {
+            color: #999;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 WebSocket 测试工具</h1>
+        
+        <div id="status" class="status disconnected">未连接</div>
+        
+        <div class="input-group">
+            <label>服务器地址:</label>
+            <input type="text" id="host" value="localhost" placeholder="例如: localhost">
+        </div>
+        
+        <div class="input-group">
+            <label>端口:</label>
+            <input type="number" id="port" value="8765" placeholder="例如: 8765">
+        </div>
+        
+        <div class="input-group">
+            <label>要发送的消息:</label>
+            <textarea id="message" placeholder="输入要发送的消息..."></textarea>
+        </div>
+        
+        <button id="connectBtn" onclick="connect()">连接</button>
+        <button id="disconnectBtn" onclick="disconnect()" class="disconnect" disabled>断开</button>
+        <button id="sendBtn" onclick="sendMessage()" disabled>发送消息</button>
+        <button onclick="clearLog()">清空日志</button>
+        
+        <h3 style="margin-top: 30px;">日志:</h3>
+        <div id="log" class="log"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            const time = new Date().toLocaleTimeString();
+            entry.innerHTML = `<span class="time">[${time}]</span> ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+        
+        function updateStatus(status, message) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status ' + status;
+            statusDiv.textContent = message;
+        }
+        
+        function connect() {
+            const host = document.getElementById('host').value.trim();
+            const port = document.getElementById('port').value;
+            
+            if (!host || !port) {
+                alert('请输入服务器地址和端口');
+                return;
+            }
+            
+            const url = `ws://${host}:${port}`;
+            log(`尝试连接到: ${url}`, 'info');
+            updateStatus('connecting', '连接中...');
+            
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('disconnectBtn').disabled = false;
+            
+            try {
+                ws = new WebSocket(url);
+                
+                ws.onopen = function() {
+                    log('WebSocket 连接成功！', 'success');
+                    updateStatus('connected', '已连接');
+                    document.getElementById('sendBtn').disabled = false;
+                };
+                
+                ws.onclose = function(event) {
+                    log(`连接已关闭 (代码: ${event.code}, 原因: ${event.reason})`, 'info');
+                    updateStatus('disconnected', '未连接');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('disconnectBtn').disabled = true;
+                    document.getElementById('sendBtn').disabled = true;
+                    ws = null;
+                };
+                
+                ws.onerror = function(error) {
+                    log('WebSocket 错误: ' + JSON.stringify(error), 'error');
+                    updateStatus('disconnected', '连接失败');
+                };
+                
+                ws.onmessage = function(event) {
+                    log(`收到消息: ${event.data}`, 'received');
+                };
+                
+            } catch (error) {
+                log('连接错误: ' + error.message, 'error');
+                updateStatus('disconnected', '连接错误');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+            }
+        }
+        
+        function disconnect() {
+            if (ws) {
+                log('主动断开连接...', 'info');
+                ws.close();
+            }
+        }
+        
+        function sendMessage() {
+            const message = document.getElementById('message').value.trim();
+            
+            if (!message) {
+                alert('请输入消息内容');
+                return;
+            }
+            
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('未连接到服务器');
+                return;
+            }
+            
+            try {
+                ws.send(message);
+                log(`发送消息: ${message}`, 'sent');
+                document.getElementById('message').value = '';
+            } catch (error) {
+                log('发送失败: ' + error.message, 'error');
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        log('WebSocket 测试工具已就绪', 'info');
+        log('请输入服务器地址和端口，然后点击"连接"按钮', 'info');
+    </script>
+</body>
+</html>
